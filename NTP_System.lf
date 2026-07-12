@@ -1,0 +1,40 @@
+target Python
+
+reactor Server {
+    input ntp_request
+    output ntp_response
+
+    reaction(ntp_request) -> ntp_response {=
+        import time
+        ntp_response.set(time.time())
+    =}
+}
+
+reactor Client {
+    output ntp_request
+    input ntp_response
+
+    logical action send_request
+
+    reaction(startup) -> send_request {=
+        send_request.schedule(0)
+    =}
+
+    reaction(send_request) -> ntp_request {=
+        ntp_request.set(True)
+    =}
+
+    reaction(ntp_response) {=
+        import time
+        diff = time.time() - ntp_response.value
+        print(f"Local clock is ahead by {diff} seconds.")
+    =}
+}
+
+main reactor NTP_System {
+    s = new Server()
+    c = new Client()
+
+    c.ntp_request -> s.ntp_request
+    s.ntp_response -> c.ntp_response
+}
