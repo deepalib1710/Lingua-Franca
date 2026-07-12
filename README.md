@@ -4,7 +4,7 @@ A research paradigm for evaluating how **reactor-oriented programming models** h
 
 ## Overview
 
-This project demonstrates the capabilities and constraints of Lingua Franca's reactor model when dealing with distributed systems that require precise timing and synchronization. By implementing an NTP-inspired client-server system, it showcases how reactor-based concurrency handles:
+This project demonstrates the capabilities of Lingua Franca's reactor model when dealing with distributed systems that require precise timing and synchronization. By implementing an NTP-inspired client-server system, it showcases how reactor-based concurrency handles:
 
 - **Temporal reasoning**: Tracking and comparing local vs. network time
 - **Asynchronous communication**: Event-driven reactor interactions
@@ -19,14 +19,6 @@ Lingua Franca is a polyglot reactive framework designed for building distributed
 - **Deterministic concurrency**: Logical time semantics for reproducible execution
 - **Multi-target compilation**: Write once, compile to Python, C, C++, TypeScript, Rust, and more
 - **Time-aware scheduling**: Built-in support for temporal actions and reactions
-
-## Repository Structure
-
-```
-Lingua-Franca/
-├── NTP_System.lf          Example NTP implementation in Lingua Franca
-└── README.md              This file
-```
 
 ## The NTP System Example
 
@@ -161,10 +153,3 @@ This repository is part of a research initiative to evaluate the **expressive po
 - How reactor models reason about causality in temporal systems
 - Trade-offs between determinism and expressiveness
 
-## License
-
-This project is provided as-is for research and educational purposes.
-
----
-
-**Questions?** Feel free to open an issue or reach out to the repository maintainer.
