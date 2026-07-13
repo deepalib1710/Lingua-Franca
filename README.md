@@ -1,155 +1,171 @@
 # Lingua-Franca: Reactor-Oriented Temporal Semantics & NTP
 
-A research paradigm for evaluating how **reactor-oriented programming models** handle **temporal semantics** and **concurrency** by implementing distributed clock synchronization using the **Network Time Protocol (NTP)**.
+A small example that demonstrates how the Lingua Franca reactor model can be used to implement an NTP-inspired clock synchronization system with an explicit network-delay emulator.
 
 ## Overview
 
-This project demonstrates the capabilities of Lingua Franca's reactor model when dealing with distributed systems that require precise timing and synchronization. By implementing an NTP-inspired client-server system, it showcases how reactor-based concurrency handles:
+This repository contains a Python-target Lingua Franca example (NTP_System.lf) that shows how reactor-oriented programs reason about time, scheduling, and message delays in a distributed setting.
 
-- **Temporal reasoning**: Tracking and comparing local vs. network time
-- **Asynchronous communication**: Event-driven reactor interactions
-- **Distributed coordination**: Multi-reactor systems communicating over logical connections
-- **Clock synchronization**: Real-time protocol implementation in a declarative model
+Key features demonstrated:
 
-## What is Lingua Franca?
+- Temporal reasoning: tracking and comparing local vs. network (server) time
+- Asynchronous communication: event-driven reactor interactions
+- Distributed coordination: multi-reactor systems communicating via ports
+- Network emulation: per-link bandwidth-based packet delay calculation
+- Clock synchronization: a simple NTP-like request/response flow
 
-Lingua Franca is a polyglot reactive framework designed for building distributed, time-sensitive systems. It provides:
+## Files
 
-- **Reactor model**: Units of concurrent computation with typed ports (inputs/outputs)
-- **Deterministic concurrency**: Logical time semantics for reproducible execution
-- **Multi-target compilation**: Write once, compile to Python, C, C++, TypeScript, Rust, and more
-- **Time-aware scheduling**: Built-in support for temporal actions and reactions
+- `NTP_System.lf` — Lingua Franca source (target: Python)
+- `README.md` — this file
 
 ## The NTP System Example
 
 ### Architecture
 
-The implementation consists of three main reactors:
+The system implements three reactor types and a `main` that wires them together:
 
-#### **Server Reactor**
-- Listens for incoming NTP requests
-- Responds with the current system time
-- Acts as the source of truth for time synchronization
+- Server: receives requests and responds with the current system time.
+- Client: schedules a logical action on startup to send an NTP request and computes the difference between the local clock and the server time on response.
+- Network: emulates a path between client and server and computes per-link delays based on a fixed packet size and link bandwidths; it forwards requests and responses with the computed (integer) delay.
 
-```lf
-reactor Server {
-    input ntp_request      # Receives sync requests
-    output ntp_response    # Sends back current time
-    
-    reaction(ntp_request) -> ntp_response {=
-        import time
-        ntp_response.set(time.time())
-    =}
-}
-```
+### Server Reactor
 
-#### **Client Reactor**
-- Initiates NTP requests on startup
-- Receives time from the server
-- Calculates local clock skew (difference between local and server time)
-- Logs the synchronization result
+Responsibilities:
 
-```lf
-reactor Client {
-    output ntp_request     # Sends sync request to server
-    input ntp_response     # Receives server time
-    
-    logical action send_request   # Triggers initial request
-    
-    reaction(startup) -> send_request {=
-        send_request.schedule(0)
-    =}
-    
-    reaction(send_request) -> ntp_request {=
-        ntp_request.set(True)
-    =}
-    
-    reaction(ntp_response) {=
-        import time
-        diff = time.time() - ntp_response.value
-        print(f"Local clock is ahead by {diff} seconds.")
-    =}
-}
-```
+- Listen for incoming `ntp_request` events
+- On request, read `time.time()`, print debug messages, and set `ntp_response` to that timestamp
 
-#### **NTP_System Main Reactor**
-Wires the client and server together, establishing the communication topology:
+Behavioral notes from `NTP_System.lf`:
 
-```lf
-main reactor NTP_System {
-    s = new Server()
-    c = new Client()
-    
-    c.ntp_request -> s.ntp_request    # Client request flows to server
-    s.ntp_response -> c.ntp_response  # Server response flows back to client
-}
-```
+- The server prints a message when it receives a request and another showing the server time.
 
-### How It Works
+Example (from runtime):
 
-1. **Startup**: The system initializes both Server and Client reactors
-2. **Request**: On startup, the Client schedules a logical action that triggers an NTP request
-3. **Response**: The Server receives the request and responds with the current time
-4. **Synchronization**: The Client receives the response and calculates the clock offset
-5. **Output**: The calculated time difference is printed to console
+Server: NTP request received.
+Server: server time: 1626180000.123456
+
+### Client Reactor
+
+Responsibilities:
+
+- On startup, schedule a logical action `send_request` at logical time 0
+- `send_request` raises `ntp_request`
+- On receiving `ntp_response`, compute local time minus server time and print the skew
+
+Behavioral notes from `NTP_System.lf`:
+
+- The client uses `time.time()` (aliased as `phyTime`) to get local time when the response arrives
+- The printed output uses 4 decimal places, e.g.:
+
+Local clock is ahead by 0.0123 seconds.
+
+### Network Reactor (emulator)
+
+Responsibilities:
+
+- Emulate packet forwarding from client → server and server → client
+- Compute per-link delay as `packet_size / bandwidth` for each hop
+- Sum per-hop delays to obtain `total_delay` and schedule forwarding after `int(total_delay)` seconds
+- Print per-link delays and the total delay
+
+Implementation details from `NTP_System.lf`:
+
+- The packet size used in the example is 20 (bytes; unitless in this simple model)
+- Links for Client → Server are defined as:
+  - ("Client", "Router", 40)
+  - ("Router", "Node1", 50)
+  - ("Node1", "Node2", 20)
+  - ("Node2", "Server", 25)
+
+  Path: ["Client", "Router", "Node1", "Node2", "Server"]
+
+- Links for Server → Client are defined as:
+  - ("Router", "Client", 40)
+  - ("Node1", "Router", 50)
+  - ("Node2", "Node1", 20)
+  - ("Server", "Node2", 25)
+
+  Path: ["Server", "Node2", "Node1", "Router", "Client"]
+
+- Each per-hop delay is printed (e.g. `Client -> Router : 0.500 sec`) and the total is printed as well.
+- The code schedules forwarding with `fwd_request.schedule(int(total_delay), c_request_in.value)` (and similarly for responses), which truncates the fractional delay to an integer number of seconds in this example.
+
+Example runtime lines from the network:
+
+Client -> Router : 0.500 sec
+Router -> Node1 : 0.400 sec
+Node1 -> Node2 : 1.000 sec
+Node2 -> Server : 0.800 sec
+Total Client → Server delay: 2.700 sec
+Network: delivering request to server
+
+Network: delivered response to client
+
+## How it works (end-to-end)
+
+1. `main` creates Server, Client, and Network reactors and wires ports:
+   - `c.ntp_request -> n.c_request_in`
+   - `n.c_request_out -> s.ntp_request`
+   - `s.ntp_response -> n.s_response_in`
+   - `n.s_response_out -> c.ntp_response`
+2. On startup, Client schedules `send_request` at logical time 0
+3. `send_request` raises `ntp_request` which goes into the `Network` reactor
+4. `Network` computes per-link delays, prints them, sums them, and schedules `fwd_request` after `int(total_delay)` seconds
+5. `Network` forwards the request to the Server; Server prints the receipt and server time and sets `ntp_response`
+6. `s_response_in` on the Network triggers the response-forwarding path (with its own per-link delays)
+7. When the Client receives `ntp_response`, it computes localTime - server_time and prints the clock skew
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Lingua Franca compiler** (visit [lf-lang.org](https://lf-lang.org))
-- **Python 3.7+** (or C/C++/TypeScript/Rust, depending on target)
+- Lingua Franca compiler (visit https://lf-lang.org)
+- Python 3.7+ (example target)
 
-### Running the Example
+### Run the example (Python target)
 
 ```bash
-# Compile and run the NTP system (Python target)
+# Compile the LF source to Python
 lfc NTP_System.lf
 
-# Execute the generated code
+# Run the generated Python program
 python src-gen/NTP_System.py
 ```
 
-### Expected Output
+Note: The example uses prints for debugging and demonstration of timing and network emulation; the exact output and timing values will differ by platform and execution timing.
+
+## Expected output (illustrative)
 
 ```
-Local clock is ahead by 0.0001234 seconds.
+Server: NTP request received.
+Server: server time: 1626180000.1234
+Client -> Router : 0.500 sec
+Router -> Node1 : 0.400 sec
+Node1 -> Node2 : 1.000 sec
+Node2 -> Server : 0.800 sec
+Total Client → Server delay: 2.700 sec
+Network: delivering request to server
+Network: delivered response to client
+Local clock is ahead by 0.0123 seconds.
 ```
 
-The exact value depends on system timing and precision. In most cases, the difference will be very small since both client and server run on the same machine.
+Because the network emulator schedules forwarding using integer seconds (via `int(total_delay)`), small fractional delays may be truncated in this example.
 
-## Key Concepts Demonstrated
+## Extensions
 
-| Concept | Implementation |
-|---------|-----------------|
-| **Asynchronous reactions** | Client/Server respond to input events without blocking |
-| **Logical actions** | `send_request` action triggers deterministically after startup |
-| **Port connections** | Typed data flows through reactor ports |
-| **Temporal semantics** | Time measurements and clock synchronization |
-| **Python integration** | Embedded Python code for time operations |
-| **Determinism** | Reactions execute in a well-defined order within a time step |
+The example is intentionally simple and can be extended to explore:
 
-## Potential Extensions
+- Multiple clients
+- More realistic per-packet serialization and propagation models
+- Introducing jitter, packet loss, or variable bandwidth
+- Compiling to other targets supported by Lingua Franca
 
-This example can be extended to explore:
+## Resources
 
-- **Multi-client synchronization**: Multiple clients coordinating with a single server
-- **Distributed consensus**: Implementing more complex protocols like Paxos or Raft
-- **Fault tolerance**: Handling delayed/lost messages and timeouts
-- **Precision timing**: Using microsecond-level timing with real hardware clocks
-- **Multiple targets**: Comparing how the system behaves when compiled to different languages
+- Lingua Franca official repo: https://github.com/lf-lang/lingua-franca
+- Language docs and tutorials: https://lf-lang.org/docs
 
-## Lingua Franca Resources
+---
 
-- 📖 [Official Documentation](https://github.com/lf-lang/lingua-franca)
-- 🎓 [Tutorials & Examples](https://lf-lang.org/docs)
-- 💬 [Community & Support](https://github.com/lf-lang/lingua-franca/discussions)
-
-## About This Project
-
-This repository is part of a research initiative to evaluate the **expressive power and correctness properties** of reactor-oriented models when applied to distributed systems with strict timing requirements. By studying how Lingua Franca handles NTP-like protocols, we can better understand:
-
-- The adequacy of logical time semantics for distributed synchronization
-- How reactor models reason about causality in temporal systems
-- Trade-offs between determinism and expressiveness
-
+Updated to reflect the implementation in `NTP_System.lf` (network emulator, printed debug output, integer scheduling of delays).
