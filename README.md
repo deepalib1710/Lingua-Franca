@@ -27,7 +27,7 @@ The system implements three reactor types and a `main` that wires them together:
 
 - Server: receives requests and responds with the current system time.
 - Client: schedules a logical action on startup to send an NTP request and computes the difference between the local clock and the server time on response.
-- Network: emulates a path between client and server and computes per-link delays based on a fixed packet size and link bandwidths; it forwards requests and responses with the computed (integer) delay.
+- Network: emulates a path between client and server and computes per-link delays based on a fixed packet size and link bandwidths; it forwards requests and responses with the computed delay (fractional seconds are preserved).
 
 ### Server Reactor
 
@@ -66,7 +66,7 @@ Responsibilities:
 
 - Emulate packet forwarding from client → server and server → client
 - Compute per-link delay as `packet_size / bandwidth` for each hop
-- Sum per-hop delays to obtain `total_delay` and schedule forwarding after `int(total_delay)` seconds
+- Sum per-hop delays to obtain `total_delay` and schedule forwarding after `total_delay` seconds (fractional delays are preserved)
 - Print per-link delays and the total delay
 
 Implementation details from `NTP_System.lf`:
@@ -89,7 +89,7 @@ Implementation details from `NTP_System.lf`:
   Path: ["Server", "Node2", "Node1", "Router", "Client"]
 
 - Each per-hop delay is printed (e.g. `Client -> Router : 0.500 sec`) and the total is printed as well.
-- The code schedules forwarding with `fwd_request.schedule(int(total_delay), c_request_in.value)` (and similarly for responses), which truncates the fractional delay to an integer number of seconds in this example.
+- The code schedules forwarding with `fwd_request.schedule(total_delay, c_request_in.value)` (and similarly for responses), which preserves fractional delays when the runtime supports floating-point schedule times.
 
 Example runtime lines from the network:
 
@@ -111,7 +111,7 @@ Network: delivered response to client
    - `n.s_response_out -> c.ntp_response`
 2. On startup, Client schedules `send_request` at logical time 0
 3. `send_request` raises `ntp_request` which goes into the `Network` reactor
-4. `Network` computes per-link delays, prints them, sums them, and schedules `fwd_request` after `int(total_delay)` seconds
+4. `Network` computes per-link delays, prints them, sums them, and schedules `fwd_request` after `total_delay` seconds
 5. `Network` forwards the request to the Server; Server prints the receipt and server time and sets `ntp_response`
 6. `s_response_in` on the Network triggers the response-forwarding path (with its own per-link delays)
 7. When the Client receives `ntp_response`, it computes localTime - server_time and prints the clock skew
@@ -150,7 +150,7 @@ Network: delivered response to client
 Local clock is ahead by 0.0123 seconds.
 ```
 
-Because the network emulator schedules forwarding using integer seconds (via `int(total_delay)`), small fractional delays may be truncated in this example.
+The network emulator preserves fractional delays when the runtime supports them; scheduling uses the computed `total_delay` (float).
 
 ## Extensions
 
@@ -168,4 +168,4 @@ The example is intentionally simple and can be extended to explore:
 
 ---
 
-Updated to reflect the implementation in `NTP_System.lf` (network emulator, printed debug output, integer scheduling of delays).
+Updated to reflect the implementation in `NTP_System.lf` (network emulator, printed debug output, fractional scheduling of delays).
