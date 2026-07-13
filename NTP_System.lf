@@ -1,40 +1,156 @@
 target Python
+ 
+reactor Server
+{
 
-reactor Server {
     input ntp_request
     output ntp_response
 
-    reaction(ntp_request) -> ntp_response {=
+    reaction(ntp_request) -> ntp_response
+    {=
         import time
-        ntp_response.set(time.time())
+        print("Server: NTP request received.")
+
+        server_time = time.time()
+
+        ntp_response.set(server_time)
+        print(f"Server: server time: {server_time}")
+
     =}
-}
+} 
 
-reactor Client {
-    output ntp_request
+reactor Client
+{
     input ntp_response
-
+    output ntp_request
+    
     logical action send_request
 
-    reaction(startup) -> send_request {=
+    reaction(startup) -> send_request
+    {= 
         send_request.schedule(0)
     =}
 
-    reaction(send_request) -> ntp_request {=
+    reaction(send_request) -> ntp_request
+    {=
         ntp_request.set(True)
     =}
 
-    reaction(ntp_response) {=
-        import time
-        diff = time.time() - ntp_response.value
-        print(f"Local clock is ahead by {diff} seconds.")
+    reaction(ntp_response)
+    {=
+        import ntplib
+        from time import time as phyTime
+
+        localTime = phyTime()
+        diff = localTime - ntp_response.value
+
+        print(f"Local clock is ahead by {diff:.4f} seconds.")
     =}
+
+} 
+
+reactor Network {
+    input c_request_in
+    output c_request_out
+
+    input s_response_in
+    output s_response_out
+
+
+    logical action fwd_request
+    logical action fwd_response
+
+
+    #client requesting server through network
+    reaction(c_request_in) -> fwd_request
+    {=
+        packet_size = 20
+        total_delay = 0.0
+
+        links = [
+            ("Client", "Router", 40),
+            ("Router", "Node1", 50),
+            ("Node1", "Node2", 20),
+            ("Node2", "Server", 25)
+        ]
+
+        path = ["Client", "Router", "Node1", "Node2", "Server"]
+
+        for i in range(len(path) - 1):
+            src = path[i]
+            dest = path[i + 1]
+
+            for (l_src, l_dest, bandwidth) in links:
+                if l_src == src and l_dest == dest:
+                    delay = packet_size / bandwidth
+                    total_delay += delay
+                    print(f"{l_src} -> {l_dest} : {delay:.3f} sec")
+
+        print(f"Total Client → Server delay: {total_delay:.3f} sec")
+
+        
+        fwd_request.schedule(int(total_delay), c_request_in.value)
+
+    =}
+
+
+    
+    reaction(fwd_request) -> c_request_out
+    {=
+        print("Network: delivering request to server")
+        c_request_out.set(fwd_request.value)
+    =}
+
+
+    #server responding to client through network
+    reaction(s_response_in) -> fwd_response
+    {=
+        packet_size = 20
+        total_delay = 0.0
+
+        links = [
+            ("Router", "Client", 40),
+            ("Node1", "Router", 50),
+            ("Node2", "Node1", 20),
+            ("Server", "Node2", 25)
+        ]
+
+        path = ["Server", "Node2", "Node1", "Router", "Client"]
+
+        for i in range(len(path) - 1):
+            src = path[i]
+            dest = path[i + 1]
+
+            for (l_src, l_dest, bandwidth) in links:
+                if l_src == src and l_dest == dest:
+                    delay = packet_size / bandwidth
+                    total_delay += delay
+                    print(f"{l_src} -> {l_dest} : {delay:.3f} sec")
+
+        print(f"Total Server → Client delay: {total_delay:.3f} sec")
+
+        fwd_response.schedule(int(total_delay), s_response_in.value)
+    =}
+
+
+     reaction(fwd_response) -> s_response_out
+    {=
+        print("Network: delivered response to client")
+        s_response_out.set(fwd_response.value)
+    =}
+
+
 }
 
 main reactor NTP_System {
     s = new Server()
     c = new Client()
+    n = new Network()
 
-    c.ntp_request -> s.ntp_request
-    s.ntp_response -> c.ntp_response
+    c.ntp_request -> n.c_request_in
+    n.c_request_out -> s.ntp_request
+
+
+    s.ntp_response -> n.s_response_in
+    n.s_response_out -> c.ntp_response
 }
