@@ -1,6 +1,6 @@
 # Lingua-Franca: Reactor-Oriented Temporal Semantics & NTP
 
-A small example that demonstrates how the Lingua Franca reactor model can be used to implement an NTP-inspired clock synchronization system with an explicit network-delay emulator.
+A example that demonstrates how the Lingua Franca reactor model can be used to implement an NTP-inspired clock synchronization system with an explicit network-delay emulator.
 
 ## Overview
 
@@ -13,11 +13,6 @@ Key features demonstrated:
 - Distributed coordination: multi-reactor systems communicating via ports
 - Network emulation: per-link bandwidth-based packet delay calculation
 - Clock synchronization: a simple NTP-like request/response flow
-
-## Files
-
-- `NTP_System.lf` — Lingua Franca source (target: Python)
-- `README.md` — this file
 
 ## The NTP System Example
 
@@ -167,5 +162,3 @@ The example is intentionally simple and can be extended to explore:
 - Language docs and tutorials: https://lf-lang.org/docs
 
 ---
-
-Updated to reflect the implementation in `NTP_System.lf` (network emulator, printed debug output, fractional scheduling of delays).
