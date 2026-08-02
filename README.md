@@ -36,11 +36,6 @@ What changes compared to the base example:
 - Link bandwidths can be changed to low values to simulate throttled links.
 - The network reactor may compute larger per-hop delays due to lower bandwidth, demonstrating how serialization delay contributes to total latency.
 
-Suggested experiments:
-
-- Reduce bandwidth on one or more hops and observe the increase in total delay and its effect on the measured clock skew.
-- Compare runs with symmetric vs. asymmetric bandwidths to see asymmetric latency's impact on synchronization.
-
 ### 3) NTP_MultipathRouting.lf
 
 Purpose:
@@ -53,11 +48,6 @@ What changes compared to the base example:
 - The Network reactor can select between multiple paths for forwarding a packet (client → server and server → client).
 - Path selection logic can be deterministic or randomized to emulate load balancing.
 
-Suggested experiments:
-
-- Define two or more paths with different bandwidths and observe the distribution of measured delays across multiple requests.
-- Introduce path preferences (e.g., choose lowest-total-delay path) and measure improvement in synchronization accuracy.
-
 ### 4) NTP_PartialNetworkFailure.lf
 
 Purpose:
@@ -69,11 +59,6 @@ What changes compared to the base example:
 
 - The Network reactor can drop packets or temporarily mark links as down.
 - The Client reactor may implement simple retry logic or timeout handling in response to missing responses.
-
-Suggested experiments:
-
-- Configure a link to fail intermittently and observe how often the client must retry and how retries affect logical scheduling.
-- Introduce exponential backoff on retries in the client and compare to fixed-interval retry strategies.
 
 ## The NTP System Example
 
