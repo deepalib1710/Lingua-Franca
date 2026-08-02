@@ -1,0 +1,115 @@
+target Python
+
+reactor Server {
+    input[2] ntp_request
+    output[2] ntp_response
+
+    reaction(ntp_request) -> ntp_response {=
+        import time
+        import sys
+        
+        for i in range(len(ntp_request)):
+            if ntp_request[i].is_present:
+                server_time = time.time()
+                ntp_response[i].set(server_time)
+                # ntp_request[i].value carries the path name string passed through the network
+                print(f"  -> Server: Received request via [{ntp_request[i].value}] at logical time mark.")
+                sys.stdout.flush()
+    =}
+} 
+
+reactor Client(client_id = 0) {
+    input ntp_response
+    output ntp_request
+    timer request_clock(0, 3 sec) 
+
+    reaction(request_clock) -> ntp_request {=
+        import sys
+        print(f"\n[NTP Log] Client {self.client_id}: Emitting sync packet into the mesh...")
+        sys.stdout.flush()
+        ntp_request.set(True)
+    =}
+
+    reaction(ntp_response) {=
+        import sys
+        from time import time as phyTime
+        diff = phyTime() - ntp_response.value
+        print(f"[NTP Log] Client {self.client_id} Success! Clock offset calculated: {diff:.4f} seconds.")
+        sys.stdout.flush()
+    =}
+} 
+
+reactor Network {
+    input[2] c_request_in
+    output[2] c_request_out
+    input[2] s_response_in
+    output[2] s_response_out
+
+    logical action fwd_request
+    logical action fwd_response
+
+    reaction(c_request_in) -> fwd_request {=
+        import sys
+        import random
+        
+        packet_size = 20
+        
+        for i in range(len(c_request_in)):
+            if c_request_in[i].is_present:
+                # Dynamic Routing Path Selection
+                # Packet randomly chooses Path A (Router 1) or Path B (Router 2)
+                chosen_path = "Router1" if random.random() > 0.5 else "Router2"
+                
+                if chosen_path == "Router1":
+                    # Path A: High bandwidth link
+                    links = [("Client", "Router1", 40), ("Router1", "Server", 40)]
+                else:
+                    # Path B: Low bandwidth / congested link
+                    links = [("Client", "Router2", 10), ("Router2", "Server", 10)]
+                
+                total_delay = 0.0
+                for (src, dest, bandwidth) in links:
+                    total_delay += (packet_size / bandwidth)
+                
+                print(f"  [MESH] Packet from Client {i} routed via {chosen_path}. Delay: {total_delay:.3f}s")
+                sys.stdout.flush()
+                
+                # Convert delay to milliseconds for scheduler, passing the path name as the payload
+                delay_ms = int(total_delay * 1000)
+                fwd_request.schedule(delay_ms, (i, chosen_path))
+    =}
+
+    reaction(fwd_request) -> c_request_out {=
+        client_idx, path_used = fwd_request.value
+        # Pass the path name forward to the server so it knows how the packet traveled
+        c_request_out[client_idx].set(path_used)
+    =}
+
+    reaction(s_response_in) -> fwd_response {=
+        for i in range(len(s_response_in)):
+            if s_response_in[i].is_present:
+                # Instantaneous return link for simplicity
+                fwd_response.schedule(0, (i, s_response_in[i].value))
+    =}
+
+    reaction(fwd_response) -> s_response_out {=
+        client_idx, payload = fwd_response.value
+        s_response_out[client_idx].set(payload)
+    =}
+}
+
+main reactor NTP_System {
+    s = new Server()
+    n = new Network()
+    
+    c0 = new Client(client_id = 0)
+    c1 = new Client(client_id = 1)
+
+    # Multiport connections mappings
+    c0.ntp_request, c1.ntp_request -> n.c_request_in
+    n.c_request_out -> s.ntp_request
+
+    s.ntp_response -> n.s_response_in
+    n.s_response_out -> c0.ntp_response, c1.ntp_response
+}
+
