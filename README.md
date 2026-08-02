@@ -220,5 +220,5 @@ These examples were designed to be small, modifiable experiments. Some ideas:
 
 - Lingua Franca official repo: https://github.com/lf-lang/lingua-franca
 - Language docs and tutorials: https://lf-lang.org/docs
-
+- Research paper (in preparation): Deepali Banka and Anupam Chattopadhyay, "From Imperative to Reactive Time-Synchronized Systems: An NTP Case Study" (manuscript fully written; email for a private draft copy).
 ---
