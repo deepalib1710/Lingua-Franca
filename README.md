@@ -6,6 +6,8 @@ A example that demonstrates how the Lingua Franca reactor model can be used to i
 
 This repository contains a Python-target Lingua Franca example (NTP_System.lf) that shows how reactor-oriented programs reason about time, scheduling, and message delays in a distributed setting.
 
+In addition to the original NTP_System example, this repository now includes three extended scenarios that explore bandwidth throttling, multipath routing, and partial network failures. Each scenario reuses the reactor-based architecture (Client, Server, Network) while modifying the network model to demonstrate different temporal and reliability behaviors.
+
 Key features demonstrated:
 
 - Temporal reasoning: tracking and comparing local vs. network (server) time
@@ -13,6 +15,65 @@ Key features demonstrated:
 - Distributed coordination: multi-reactor systems communicating via ports
 - Network emulation: per-link bandwidth-based packet delay calculation
 - Clock synchronization: a simple NTP-like request/response flow
+
+## Examples in this repository
+
+### 1) NTP_System.lf (base example)
+
+The original NTP system demonstrates the basic flow of an NTP-like request/response with a network reactor that computes per-hop delays based on a fixed packet size and link bandwidths.
+
+See the Architecture, Server, Client, and Network sections below for details on this example.
+
+### 2) NTP_BandwidthThrottling.lf
+
+Purpose:
+
+- Demonstrates how limited link bandwidth affects packet serialization delays and end-to-end latency.
+- Shows the effects of different bandwidth values on measured clock skew and scheduling.
+
+What changes compared to the base example:
+
+- Link bandwidths can be changed to low values to simulate throttled links.
+- The network reactor may compute larger per-hop delays due to lower bandwidth, demonstrating how serialization delay contributes to total latency.
+
+Suggested experiments:
+
+- Reduce bandwidth on one or more hops and observe the increase in total delay and its effect on the measured clock skew.
+- Compare runs with symmetric vs. asymmetric bandwidths to see asymmetric latency's impact on synchronization.
+
+### 3) NTP_MultipathRouting.lf
+
+Purpose:
+
+- Demonstrates routing a request/response over multiple possible paths and aggregating delays from a chosen path.
+- Explores how alternate paths with different bandwidths affect delivered latency and jitter.
+
+What changes compared to the base example:
+
+- The Network reactor can select between multiple paths for forwarding a packet (client → server and server → client).
+- Path selection logic can be deterministic or randomized to emulate load balancing.
+
+Suggested experiments:
+
+- Define two or more paths with different bandwidths and observe the distribution of measured delays across multiple requests.
+- Introduce path preferences (e.g., choose lowest-total-delay path) and measure improvement in synchronization accuracy.
+
+### 4) NTP_PartialNetworkFailure.lf
+
+Purpose:
+
+- Models flaky links and node outages, demonstrating how partial failures affect message delivery and clock synchronization.
+- Shows strategies for handling missing responses or delayed retransmissions within a reactor model.
+
+What changes compared to the base example:
+
+- The Network reactor can drop packets or temporarily mark links as down.
+- The Client reactor may implement simple retry logic or timeout handling in response to missing responses.
+
+Suggested experiments:
+
+- Configure a link to fail intermittently and observe how often the client must retry and how retries affect logical scheduling.
+- Introduce exponential backoff on retries in the client and compare to fixed-interval retry strategies.
 
 ## The NTP System Example
 
@@ -22,7 +83,7 @@ The system implements three reactor types and a `main` that wires them together:
 
 - Server: receives requests and responds with the current system time.
 - Client: schedules a logical action on startup to send an NTP request and computes the difference between the local clock and the server time on response.
-- Network: emulates a path between client and server and computes per-link delays based on a fixed packet size and link bandwidths; it forwards requests and responses with the computed delay (fractional seconds are preserved).
+- Network: emulates a path between client and server and computes per-link delays based on a fixed packet size and link bandwidths; it forwards requests and responses with the computed delay (fractional delays are preserved when the runtime supports them).
 
 ### Server Reactor
 
@@ -84,7 +145,7 @@ Implementation details from `NTP_System.lf`:
   Path: ["Server", "Node2", "Node1", "Router", "Client"]
 
 - Each per-hop delay is printed (e.g. `Client -> Router : 0.500 sec`) and the total is printed as well.
-- The code schedules forwarding with `fwd_request.schedule(total_delay, c_request_in.value)` (and similarly for responses), which preserves fractional delays when the runtime supports floating-point schedule times.
+- The code schedules forwarding with `fwd_request.schedule(total_delay, c_request_in.value)` (and similarly for responses), which preserves fractional delays when the runtime supports floating-point logical times.
 
 Example runtime lines from the network:
 
@@ -118,17 +179,23 @@ Network: delivered response to client
 - Lingua Franca compiler (visit https://lf-lang.org)
 - Python 3.7+ (example target)
 
-### Run the example (Python target)
+### Run the examples (Python target)
 
-```bash
 # Compile the LF source to Python
 lfc NTP_System.lf
 
 # Run the generated Python program
 python src-gen/NTP_System.py
-```
 
-Note: The example uses prints for debugging and demonstration of timing and network emulation; the exact output and timing values will differ by platform and execution timing.
+Replace `NTP_System.lf` above with any of the example sources to compile and run the other scenarios (e.g. `NTP_BandwidthThrottling.lf`, `NTP_MultipathRouting.lf`, `NTP_PartialNetworkFailure.lf`). The generated Python files will be created under `src-gen/` with matching base names.
+
+Example:
+
+```bash
+# Compile bandwidth throttling scenario
+lfc NTP_BandwidthThrottling.lf
+python src-gen/NTP_BandwidthThrottling.py
+```
 
 ## Expected output (illustrative)
 
@@ -147,14 +214,22 @@ Local clock is ahead by 0.0123 seconds.
 
 The network emulator preserves fractional delays when the runtime supports them; scheduling uses the computed `total_delay` (float).
 
-## Extensions
+## Experiments and Extensions
 
-The example is intentionally simple and can be extended to explore:
+These examples were designed to be small, modifiable experiments. Some ideas:
 
-- Multiple clients
-- More realistic per-packet serialization and propagation models
-- Introducing jitter, packet loss, or variable bandwidth
-- Compiling to other targets supported by Lingua Franca
+- Multiple clients: instantiate more client reactors to measure aggregate effects on the network and server.
+- More realistic per-packet serialization and propagation models: add propagation latency or variable packet sizes.
+- Introducing jitter, packet loss, or variable bandwidth: the `NTP_PartialNetworkFailure.lf` example already shows packet drops/failures; try adding stochastic jitter to per-hop delays.
+- Multipath selection strategies: in `NTP_MultipathRouting.lf`, try deterministic vs. probabilistic path selection and measure variance in measured skew.
+- Compiling to other targets supported by Lingua Franca: Java, C, etc.
+
+## Files
+
+- NTP_System.lf — Base example demonstrating the simple NTP-like exchange and delay emulator.
+- NTP_BandwidthThrottling.lf — Variant demonstrating the effect of limited bandwidth on end-to-end delay.
+- NTP_MultipathRouting.lf — Variant demonstrating multiple alternate paths between client and server.
+- NTP_PartialNetworkFailure.lf — Variant that models packet loss and flaky links/nodes.
 
 ## Resources
 
