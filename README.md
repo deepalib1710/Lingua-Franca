@@ -166,10 +166,10 @@ Network: delivered response to client
 
 ### Run the examples (Python target)
 
-# Compile the LF source to Python
+## Compile the LF source to Python
 lfc NTP_System.lf
 
-# Run the generated Python program
+## Run the generated Python program
 python src-gen/NTP_System.py
 
 Replace `NTP_System.lf` above with any of the example sources to compile and run the other scenarios (e.g. `NTP_BandwidthThrottling.lf`, `NTP_MultipathRouting.lf`, `NTP_PartialNetworkFailure.lf`). The generated Python files will be created under `src-gen/` with matching base names.
