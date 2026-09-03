@@ -164,7 +164,9 @@ Network: delivered response to client
 - Lingua Franca compiler (visit https://lf-lang.org)
 - Python 3.7+ (example target)
 
-### Run the examples (Python target)
+### Setting up Lingua Franca
+
+The document "SettingUpLinguaFranca.pdf" is a step-by-step setup and troubleshooting guide for running Lingua Franca on Windows machines. 
 
 ## Compile the LF source to Python
 lfc NTP_System.lf
