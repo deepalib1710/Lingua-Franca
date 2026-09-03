@@ -166,7 +166,7 @@ Network: delivered response to client
 
 ### Setting up Lingua Franca
 
-The document "SettingUpLinguaFranca.pdf" is a step-by-step setup and troubleshooting guide for running Lingua Franca on Windows machines. 
+The document "SettingUpLinguaFranca.pdf" is a step-by-step setup and troubleshooting guide for running Lingua Franca on Windows machines and on Linux via WSL.
 
 ## Compile the LF source to Python
 lfc NTP_System.lf
