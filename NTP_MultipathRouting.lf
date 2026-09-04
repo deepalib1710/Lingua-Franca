@@ -4,6 +4,7 @@ reactor Server {
     input[2] ntp_request
     output[2] ntp_response
 
+    # Process incoming requests from multiple clients
     reaction(ntp_request) -> ntp_response {=
         import time
         import sys
@@ -12,7 +13,8 @@ reactor Server {
             if ntp_request[i].is_present:
                 server_time = time.time()
                 ntp_response[i].set(server_time)
-                # ntp_request[i].value carries the path name string passed through the network
+
+                # Display the route used by the incoming request
                 print(f"  -> Server: Received request via [{ntp_request[i].value}] at logical time mark.")
                 sys.stdout.flush()
     =}
@@ -21,6 +23,8 @@ reactor Server {
 reactor Client(client_id = 0) {
     input ntp_response
     output ntp_request
+
+    # Periodically generate synchronization requests
     timer request_clock(0, 3 sec) 
 
     reaction(request_clock) -> ntp_request {=
@@ -30,6 +34,7 @@ reactor Client(client_id = 0) {
         ntp_request.set(True)
     =}
 
+    # Calculate the clock offset after receiving the server response
     reaction(ntp_response) {=
         import sys
         from time import time as phyTime
@@ -48,6 +53,7 @@ reactor Network {
     logical action fwd_request
     logical action fwd_response
 
+    # Route each client request through one of two dynamically selected paths
     reaction(c_request_in) -> fwd_request {=
         import sys
         import random
@@ -56,6 +62,7 @@ reactor Network {
         
         for i in range(len(c_request_in)):
             if c_request_in[i].is_present:
+
                 # Dynamic Routing Path Selection
                 # Packet randomly chooses Path A (Router 1) or Path B (Router 2)
                 chosen_path = "Router1" if random.random() > 0.5 else "Router2"
@@ -74,17 +81,19 @@ reactor Network {
                 print(f"  [MESH] Packet from Client {i} routed via {chosen_path}. Delay: {total_delay:.3f}s")
                 sys.stdout.flush()
                 
-                # Convert delay to milliseconds for scheduler, passing the path name as the payload
+                # Schedule forwarding while preserving the client ID and route information
                 delay_ms = int(total_delay * 1000)
                 fwd_request.schedule(delay_ms, (i, chosen_path))
     =}
 
+    # Deliver the request to the corresponding server input port
     reaction(fwd_request) -> c_request_out {=
         client_idx, path_used = fwd_request.value
         # Pass the path name forward to the server so it knows how the packet traveled
         c_request_out[client_idx].set(path_used)
     =}
 
+    # Forward server responses back to their corresponding clients
     reaction(s_response_in) -> fwd_response {=
         for i in range(len(s_response_in)):
             if s_response_in[i].is_present:
@@ -92,6 +101,7 @@ reactor Network {
                 fwd_response.schedule(0, (i, s_response_in[i].value))
     =}
 
+    # Deliver the response to the corresponding client
     reaction(fwd_response) -> s_response_out {=
         client_idx, payload = fwd_response.value
         s_response_out[client_idx].set(payload)
@@ -101,14 +111,17 @@ reactor Network {
 main reactor NTP_System {
     s = new Server()
     n = new Network()
-    
+
+
+    # Create two independent clients
     c0 = new Client(client_id = 0)
     c1 = new Client(client_id = 1)
 
-    # Multiport connections mappings
+    # Connect client requests to the corresponding network input ports
     c0.ntp_request, c1.ntp_request -> n.c_request_in
     n.c_request_out -> s.ntp_request
 
+    # Route server responses back through the network to each client
     s.ntp_response -> n.s_response_in
     n.s_response_out -> c0.ntp_response, c1.ntp_response
 }
