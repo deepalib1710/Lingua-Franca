@@ -1,8 +1,8 @@
 target Python
  
+# Receives NTP request and sends back its current system time
 reactor Server
 {
-
     input ntp_request
     output ntp_response
 
@@ -15,10 +15,10 @@ reactor Server
 
         ntp_response.set(server_time)
         print(f"Server: server time: {server_time}")
-
     =}
 } 
 
+# Sends an NTP request at startup and compares the received server time with its local physical clock
 reactor Client
 {
     input ntp_response
@@ -36,6 +36,7 @@ reactor Client
         ntp_request.set(True)
     =}
 
+    # Calculates the difference between local and server time
     reaction(ntp_response)
     {=
         import ntplib
@@ -46,9 +47,9 @@ reactor Client
 
         print(f"Local clock is ahead by {diff:.4f} seconds.")
     =}
-
 } 
 
+# Simulates communication delays between the client and server
 reactor Network {
     input c_request_in
     output c_request_out
@@ -56,12 +57,10 @@ reactor Network {
     input s_response_in
     output s_response_out
 
-
     logical action fwd_request
     logical action fwd_response
 
-
-    #client requesting server through network
+    # Client requesting server through network after simulating delay through each link
     reaction(c_request_in) -> fwd_request
     {=
         packet_size = 20
@@ -88,21 +87,18 @@ reactor Network {
 
         print(f"Total Client → Server delay: {total_delay:.3f} sec")
 
-        
+        # Schedule delivery of the request after the total network delay
         fwd_request.schedule(int(total_delay), c_request_in.value)
-
     =}
 
-
-    
+    # Deliver the request to the server
     reaction(fwd_request) -> c_request_out
     {=
         print("Network: delivering request to server")
         c_request_out.set(fwd_request.value)
     =}
 
-
-    #server responding to client through network
+    # Server responding to client through network after simulating delay through each link
     reaction(s_response_in) -> fwd_response
     {=
         packet_size = 20
@@ -129,19 +125,19 @@ reactor Network {
 
         print(f"Total Server → Client delay: {total_delay:.3f} sec")
 
+        # Schedule delivery of the response after the total return delay
         fwd_response.schedule(int(total_delay), s_response_in.value)
     =}
 
-
+     # Deliver the server's response to the client
      reaction(fwd_response) -> s_response_out
     {=
         print("Network: delivered response to client")
         s_response_out.set(fwd_response.value)
     =}
-
-
 }
 
+# Connects the Client, Network, and Server components
 main reactor NTP_System {
     s = new Server()
     c = new Client()
@@ -149,7 +145,6 @@ main reactor NTP_System {
 
     c.ntp_request -> n.c_request_in
     n.c_request_out -> s.ntp_request
-
 
     s.ntp_response -> n.s_response_in
     n.s_response_out -> c.ntp_response
