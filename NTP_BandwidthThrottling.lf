@@ -2,7 +2,6 @@ target Python
  
 reactor Server
 {
-
     input ntp_request
     output ntp_response
 
@@ -58,40 +57,36 @@ reactor Network {
     
     logical action fwd_request
     logical action fwd_response
-    
-    reaction(c_request_in) -> fwd_request {=
-        # 1. Define base parameters
+
+    # Simulate dynamic network congestion based on logical time
+    reaction(c_request_in) -> fwd_request 
+    {=
+        # Define base parameters
         packet_size = 20
         base_bandwidth = 40.0 # High baseline bandwidth
         
-        # 2. Check current logical time to detect "Rush Hour"
-        # lf.time.logical() returns time in nanoseconds
-        # Let's trigger congestion after 5 seconds of simulation time
+        # Check current logical time 
         current_logical_time_ns = lf.time.logical()
         five_seconds_ns = 5 * 1000000000
         
         if current_logical_time_ns >= five_seconds_ns:
-            # Drop bandwidth by 80% to simulate a heavy traffic spike
+            # Drop bandwidth by 80% to simulate a heavy traffic spike after 5 seconds
             effective_bandwidth = base_bandwidth * 0.2
             print(f"  [ALERT] Traffic Spike! Bandwidth throttled to {effective_bandwidth}")
         else:
             effective_bandwidth = base_bandwidth
             
-        # 3. Calculate delay deterministically based on dynamic bandwidth
+        # Calculate delay deterministically based on dynamic bandwidth
         delay_sec = packet_size / effective_bandwidth
         
-        # 4. Schedule the forwarding action
-        fwd_request.schedule(int(delay_sec), c_request_in.value)
-    
+        # Schedule the forwarding action
+        fwd_request.schedule(int(delay_sec), c_request_in.value)  
     =}
 
     reaction(fwd_request) -> c_request_out {=
         print("Network: delivering request to server")
         c_request_out.set(fwd_request.value)
     =}
-
-    # (Repeat similar threshold logic for the fwd_response path if desired)
-
 
     #server responding to client through network
     reaction(s_response_in) -> fwd_response
@@ -123,7 +118,6 @@ reactor Network {
         fwd_response.schedule(int(total_delay), s_response_in.value)
     =}
 
-
      reaction(fwd_response) -> s_response_out
     {=
         print("Network: delivered response to client")
@@ -138,7 +132,6 @@ main reactor NTP_System {
 
     c.ntp_request -> n.c_request_in
     n.c_request_out -> s.ntp_request
-
 
     s.ntp_response -> n.s_response_in
     n.s_response_out -> c.ntp_response
