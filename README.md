@@ -19,11 +19,12 @@ Key features demonstrated:
 ## Research Artifacts in this Repository
 
 - NTPParadigmShift_Paper.pdf: Research Manuscript - Deepali Banka and Anupam Chattopadhyay, "From Imperative to Reactive Time-Synchronized Systems: An NTP Case Study", October 2026
-- NTPParadigmShift_Imperative-to-Reactive.pptx: Research presentation for the LF community
+- NTPParadigmShift_Imperative-to-Reactive.pptx: Research presentation to the LF community
 
-Note: If you utilize these artifacts or build upon this framework, please cite our work. 
+Note: If you utilize these artifacts or build upon this framework, please cite our work.
+```text
 Deepali Banka and Anupam Chattopadhyay, "From Imperative to Reactive Time-Synchronized Systems: An NTP Case Study", October 2026, arXiv:submit/8305651
-      
+```   
   
 ## Examples in this Repository
 
