@@ -16,7 +16,16 @@ Key features demonstrated:
 - Network emulation: per-link bandwidth-based packet delay calculation
 - Clock synchronization: a simple NTP-like request/response flow
 
-## Examples in this repository
+## Research Artifacts in this Repository
+
+- NTPParadigmShift_Paper.pdf: Research Manuscript - Deepali Banka and Anupam Chattopadhyay, "From Imperative to Reactive Time-Synchronized Systems: An NTP Case Study", October 2026
+- NTPParadigmShift_Imperative-to-Reactive.pptx: Research presentation for the LF community
+
+Note: If you utilize these artifacts or build upon this framework, please cite our work. 
+Deepali Banka and Anupam Chattopadhyay, "From Imperative to Reactive Time-Synchronized Systems: An NTP Case Study", October 2026, arXiv:submit/8305651
+      
+  
+## Examples in this Repository
 
 ### 1) NTP_System.lf (base example)
 
@@ -143,7 +152,7 @@ Network: delivering request to server
 
 Network: delivered response to client
 
-## How it works (end-to-end)
+## How it Works (end-to-end)
 
 1. `main` creates Server, Client, and Network reactors and wires ports:
    - `c.ntp_request -> n.c_request_in`
@@ -169,10 +178,10 @@ Network: delivered response to client
 The document "SettingUpLinguaFranca.pdf" is a step-by-step setup and troubleshooting guide for running Lingua Franca on Windows machines and on Linux via WSL2. 
 This document also covers an LF setup bug I isolated, which was fixed with a patch from the developers.
 
-## Compile the LF source to Python
+## Compile the LF Source to Python
 lfc NTP_System.lf
 
-## Run the generated Python program
+## Run the Generated Python Program
 python src-gen/NTP_System.py
 
 Replace `NTP_System.lf` above with any of the example sources to compile and run the other scenarios (e.g. `NTP_BandwidthThrottling.lf`, `NTP_MultipathRouting.lf`, `NTP_PartialNetworkFailure.lf`). The generated Python files will be created under `src-gen/` with matching base names.
@@ -185,7 +194,7 @@ lfc NTP_BandwidthThrottling.lf
 python src-gen/NTP_BandwidthThrottling.py
 ```
 
-## Expected output (illustrative)
+## Expected Output (Illustrative)
 
 ```
 Server: NTP request received.
@@ -212,16 +221,15 @@ These examples were designed to be small, modifiable experiments. Some ideas:
 - Multipath selection strategies: in `NTP_MultipathRouting.lf`, try deterministic vs. probabilistic path selection and measure variance in measured skew.
 - Compiling to other targets supported by Lingua Franca: Java, C, etc.
 
-## Files
+## Code Files
 
 - NTP_System.lf — Base example demonstrating the simple NTP-like exchange and delay emulator.
 - NTP_BandwidthThrottling.lf — Variant demonstrating the effect of limited bandwidth on end-to-end delay.
 - NTP_MultipathRouting.lf — Variant demonstrating multiple alternate paths between client and server.
 - NTP_PartialNetworkFailure.lf — Variant that models packet loss and flaky links/nodes.
 
-## Resources
+## Other Resources
 
 - Lingua Franca official repo: https://github.com/lf-lang/lingua-franca
 - Language docs and tutorials: https://lf-lang.org/docs
-- Research paper (in preparation): Deepali Banka and Anupam Chattopadhyay, "From Imperative to Reactive Time-Synchronized Systems: An NTP Case Study" (manuscript fully written; email for a private draft copy).
 ---
